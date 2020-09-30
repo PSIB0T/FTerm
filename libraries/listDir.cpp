@@ -1,25 +1,26 @@
 #include "./../includes/listDir.h"
 
 void listContents(char * cwd){
+    printf("\033[H\033[J");
     DIR *dp;
-    std::vector<char *> dirList;
     struct dirent * dirp;
     if ((dp = opendir(cwd)) == NULL) {
         perror("DError");
         exit(1);
     }
     char * res = realpath(cwd, currBuff);
-    printf("%s\n", currBuff);
+    dirList.clear();
+    dirList.push_back(currDir);
+    dirList.push_back(parentDir);
     while ((dirp = readdir(dp)) != NULL){
         if (strcmp(currDir, dirp->d_name) != 0 && strcmp(parentDir, dirp->d_name) != 0){
             dirList.push_back(dirp->d_name);
         }
     }
-    dirList.push_back(currDir);
-    dirList.push_back(parentDir);
     for (auto a: dirList){
         listFile(a);
     }
+    // printf("\033[2A");
         // printf("%s\t%lu\n", dirp->d_name, dirp->d_ino);
         
     closedir(dp);

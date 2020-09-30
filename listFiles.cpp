@@ -6,5 +6,7 @@ int main(int argc, char * argv[]){
         return -1;
     }
     listContents(argv[1]);
+    enableNCMode();
+    normalMode();
     return 0;
 }
