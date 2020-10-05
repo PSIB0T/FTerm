@@ -7,4 +7,8 @@
     void commandMode();
     void up();
     void down();
+    void enterDir();
+    void scrollUp();
+    void scrollDown();
+    void goHome();
 #endif

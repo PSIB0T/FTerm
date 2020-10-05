@@ -5,8 +5,8 @@ int main(int argc, char * argv[]){
         printf("%s \n", "Insufficient number of args");
         return -1;
     }
-    listContents(argv[1]);
     enableNCMode();
+    listContents(argv[1]);
     normalMode();
     return 0;
 }

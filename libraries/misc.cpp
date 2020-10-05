@@ -6,10 +6,11 @@ void disableNCMode(){
 }
 
 void enableNCMode() {
-    printf("\033[H");
+    // printf("\033[H");
     tcgetattr(STDIN_FILENO, &orig_termios);
     atexit(disableNCMode);
     currentMode = orig_termios;
     currentMode.c_lflag &= ~(ECHO | ICANON);
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &currentMode);
+    // printf("\033[r");
 }

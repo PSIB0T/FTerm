@@ -1,7 +1,6 @@
 #include "./../includes/listDir.h"
 
 void listContents(char * cwd){
-    printf("\033[H\033[J");
     DIR *dp;
     struct dirent * dirp;
     if ((dp = opendir(cwd)) == NULL) {
@@ -17,16 +16,30 @@ void listContents(char * cwd){
             dirList.push_back(dirp->d_name);
         }
     }
-    for (auto a: dirList){
-        listFile(a);
-    }
+    ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
+    int limit = ws.ws_row > dirList.size()?dirList.size():ws.ws_row - 1;
+    y = 0;
+    x = 0;
+    start = 0;
+    end = limit;
+    updateScreen();
     // printf("\033[2A");
         // printf("%s\t%lu\n", dirp->d_name, dirp->d_ino);
         
     closedir(dp);
 }
 
+void updateScreen(){
+    printf("\033[H\033[J");
+    for (int i = start; i < end; i++){
+        listFile(dirList[i]);
+    }
+    printf("\033[%d;0H", (y + 1));
+}
+
 void listFile(char * fName){
+    struct winsize ws;
+    ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
     char temp[PATH_MAX] = "";
     struct stat fileStat;
     strcat(temp, currBuff);
@@ -35,7 +48,6 @@ void listFile(char * fName){
     }
     strcat(temp, fName);
     lstat(temp, &fileStat);
-    printf("%s\t", fName);
     switch(fileStat.st_mode & S_IFMT){
         case S_IFBLK:
         printf("b");
@@ -69,6 +81,8 @@ void listFile(char * fName){
     printf( (fileStat.st_mode & S_IROTH) ? "r" : "-");
     printf( (fileStat.st_mode & S_IWOTH) ? "w" : "-");
     printf( (fileStat.st_mode & S_IXOTH) ? "x" : "-");
+
+    printf("\t%s", fName);
 
     printf("\n");
 }
