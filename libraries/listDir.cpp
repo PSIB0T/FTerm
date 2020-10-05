@@ -1,6 +1,6 @@
 #include "./../includes/listDir.h"
 
-void listContents(char * cwd){
+void listContents(const char * cwd){
     DIR *dp;
     struct dirent * dirp;
     if ((dp = opendir(cwd)) == NULL) {
@@ -25,7 +25,6 @@ void listContents(char * cwd){
     updateScreen();
     // printf("\033[2A");
         // printf("%s\t%lu\n", dirp->d_name, dirp->d_ino);
-        
     closedir(dp);
 }
 
@@ -37,7 +36,7 @@ void updateScreen(){
     printf("\033[%d;0H", (y + 1));
 }
 
-void listFile(char * fName){
+void listFile(const char * fName){
     struct winsize ws;
     ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
     char temp[PATH_MAX] = "";
