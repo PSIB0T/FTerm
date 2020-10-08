@@ -13,8 +13,16 @@
 #include <algorithm>
 #include <sys/ioctl.h>
 #include <ctype.h>
+#include <stdexcept>
+#include <fcntl.h>
+#include <pwd.h>
 
 #define MAX_CMD_LENGTH 32768
+
+class CmdModeException: public std::runtime_error{
+    public:
+        CmdModeException(char const* const message);
+};
 
 struct StackOverflowException : public std::exception
 {
@@ -64,6 +72,14 @@ extern char CMD_KEY[2];
 extern char ESCAPE[2];
 extern char RENAME_COMMAND[7];
 extern char MOVE_COMMAND[5];
+extern char COPY_COMMAND[5];
+extern char userDir[PATH_MAX];
+extern char CREATE_FOLDER_COMMAND[11];
+extern char CREATE_FILE_COMMAND[12];
+extern char DELETE_FILE_COMMAND[12];
+extern char DELETE_FOLDER_COMMAND[11];
+extern char GOTO_COMMAND[5];
+extern char SEARCH_COMMAND[7];
 extern int y;
 extern int x;
 extern int start;

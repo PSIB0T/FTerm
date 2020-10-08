@@ -14,3 +14,15 @@ void enableNCMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &currentMode);
     // printf("\033[r");
 }
+
+void setHomeDir(){
+    char * homeDirTemp = getenv("HOME");
+    if (homeDirTemp != NULL){
+        strcpy(userDir, homeDirTemp);
+    } else {
+        uid_t uid = getuid();
+        struct passwd * pw= getpwuid(uid);
+        strcpy(userDir, pw->pw_dir);
+    }
+    strcat(userDir, "/");
+}

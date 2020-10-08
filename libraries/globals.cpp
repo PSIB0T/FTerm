@@ -11,6 +11,8 @@ const char * StackOverflowException::what() const throw (){
     return "Stackoverflow!";
 }
 
+CmdModeException::CmdModeException(char const* const message): std::runtime_error(message){}
+
 Stack::Stack(){
     this->top = NULL;
 }
@@ -33,6 +35,16 @@ void Stack::push(char * path){
         this->top->front = new Node(path);
         this->top->front->back = this->top;
         this->top = this->top->front;
+    }
+}
+
+void Stack::pop(){
+    if (this->top != NULL){
+        Node * temp = this->top;
+        this->top = this->top->back;
+        if (this->top)
+            this->top->front = NULL;
+        free(temp);
     }
 }
 
@@ -80,6 +92,14 @@ char SCROLL_DOWN[2] = "l";
 char HOME_KEY[2] = "h";
 char RENAME_COMMAND[7] = "rename";
 char MOVE_COMMAND[5] = "move";
+char COPY_COMMAND[5] = "copy";
+char CREATE_FOLDER_COMMAND[11] = "create_dir";
+char CREATE_FILE_COMMAND[12] = "create_file";
+char DELETE_FOLDER_COMMAND[11] = "delete_dir";
+char DELETE_FILE_COMMAND[12] = "delete_file";
+char GOTO_COMMAND[5] = "goto";
+char SEARCH_COMMAND[7] = "search";
+char userDir[PATH_MAX] = "";
 int y = 0;
 int x = 0;
 int start = 0;

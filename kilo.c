@@ -20,16 +20,19 @@ void enableRawMode() {
 }
 
 int main() {
-  enableRawMode();
-  char c[3];
-  while (read(STDIN_FILENO, &c, 3) >= 1 && c[0] != 'q') {
-    if (iscntrl(c)) {
-      printf("%d\n", c);
-    } else {
-      printf("%d ('%c')\n", c, c);
-    }
-    printf("%lu\n", strlen(c));
-    fflush(0);
-  }
+  char path[200] = "";
+  printf("%d", access("/proc/tty/driver/", R_OK));
+  // printf("%s", path);
+  // enableRawMode();
+  // char c[3];
+  // while (read(STDIN_FILENO, &c, 3) >= 1 && c[0] != 'q') {
+  //   if (iscntrl(c)) {
+  //     printf("%d\n", c);
+  //   } else {
+  //     printf("%d ('%c')\n", c, c);
+  //   }
+  //   printf("%lu\n", strlen(c));
+  //   fflush(0);
+  // }
   return 0;
 }

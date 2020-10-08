@@ -9,7 +9,7 @@
     void commandMode();
     void up();
     void down();
-    void enterDir(char * dir);
+    void enterDir(char * dir, bool pushToStack=true);
     void scrollUp();
     void scrollDown();
     void goHome();

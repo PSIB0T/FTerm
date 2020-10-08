@@ -1,5 +1,6 @@
 #include "./../includes/modes.h"
 #include "./../includes/listDir.h"
+#include "./../includes/misc.h"
 
 void normalMode(){
     char c[3];
@@ -50,9 +51,17 @@ void scrollUp(){
 char * getAbsPath(char * dir){
     char * temp = (char *)malloc(sizeof(char) * PATH_MAX);
     temp[0] = '\0';
-    strcat(temp, currBuff);
-    if (temp[strlen(temp) - 1] != '/'){
-        strcat(temp, "/");
+    if (dir[0] != '~' && dir[0] != '/'){
+        strcat(temp, currBuff);
+        if (temp[strlen(temp) - 1] != '/'){
+            strcat(temp, "/");
+        }
+    } else if(dir[0] == '~'){
+        strcat(temp, homeDir);
+        if (temp[strlen(temp) - 1] != '/'){
+            strcat(temp, "/");
+        }
+        dir = dir + 1;
     }
     strcat(temp, dir);
     return temp;
@@ -60,45 +69,268 @@ char * getAbsPath(char * dir){
 
 void rename(){
     if (tokens.size() != 3){
-        printf("Pass 2 arguments for rename");
-        getchar();
-        return;
+        throw CmdModeException("Rename command requires 2 args");
     }
     char * src = getAbsPath(tokens[1]);
     char * dest = getAbsPath(tokens[2]);
-    printf("%s %s", src, dest);
+    // printf("%s %s", src, dest);
     int value = rename(src, dest);
     if (value){
-        printf("Error changing file name");
-        getchar();
+        throw CmdModeException("Error changing file name");
+        free(src);
+        free(dest);
+    }
+    free(src);
+    free(dest);
+}
+
+void copyUtil(char * src, char * dest){
+    int sourceFile, destFile, status, returnStatus;
+    DIR * sourceDir;
+    char * sourceFilePath, destFilePath;
+    char fileBuffer;
+    struct stat fileStat;
+    char temp[PATH_MAX] = "";
+    int destPathLen, srcPathLen;
+    char destBuff[PATH_MAX] = "";
+    returnStatus = lstat(src, &fileStat);
+    if (returnStatus == -1)
+        throw CmdModeException("Source File is invalid");
+    if ((fileStat.st_mode & S_IFMT) == S_IFDIR){
+        struct dirent * dirp;
+        strcpy(destBuff, dest);
+        strcpy(temp, src);
+        if (destBuff[strlen(destBuff) - 1] != '/')
+            strcat(destBuff, "/");
+        if (temp[strlen(temp) - 1] != '/')
+            strcat(temp, "/");  
+        destPathLen = strlen(destBuff);
+        srcPathLen = strlen(temp);
+        status = mkdir(destBuff, fileStat.st_mode);
+        sourceDir = opendir(src);
+        while ((dirp = readdir(sourceDir)) != NULL){
+            if (strcmp(currDir, dirp->d_name) == 0 || strcmp(parentDir, dirp->d_name) == 0)
+                continue;
+            memset(temp + srcPathLen, 0, strlen(temp) - srcPathLen);
+            memset(destBuff + destPathLen, 0, strlen(destBuff) - destPathLen);
+            strcat(temp, dirp->d_name);
+            strcat(destBuff, dirp->d_name);
+            copyUtil(temp, destBuff);
+        }
+        closedir(sourceDir);
+    } else {
+        sourceFile = open(src, O_RDONLY);
+        destFile = open(dest, O_WRONLY | O_CREAT, fileStat.st_mode);
+        while((status=read(sourceFile, &fileBuffer, 1)) != 0){
+            write(destFile, &fileBuffer, 1);
+        }
+        close(sourceFile);
+        close(destFile);
     }
 }
 
-void move(){
+bool searchUtil(char * searchStr, Stack &searchStack){
+    DIR * sourceDir;
+    struct stat fileStat;
+    struct dirent * dirp;
+    const char * dir = searchStack.getTop();
+    sourceDir = opendir(dir);
+    char * temp = (char *)malloc(sizeof(char) * PATH_MAX);
+    temp[0] = 0;
+    strcpy(temp, dir);
+    if (temp[strlen(temp) - 1] != '/')
+        strcat(temp, "/");
+    // printf("%s", temp);
+    // getchar();
+    int pathLen = strlen(temp);
+    while ((dirp = readdir(sourceDir)) != NULL){
+        if (strcmp(currDir, dirp->d_name) == 0 || strcmp(parentDir, dirp->d_name) == 0)
+            continue;
+        memset(temp + pathLen, 0, strlen(temp) - pathLen);
+        strcat(temp, dirp->d_name);
+        if (strcmp(dirp->d_name, searchStr) == 0)
+            return true;
+        lstat(temp, &fileStat);
+        if ((fileStat.st_mode & S_IFMT) == S_IFDIR && access(temp, R_OK) == 0){
+            searchStack.push(temp);
+            if (searchUtil(searchStr, searchStack) == true)
+                return true;
+            searchStack.pop();
+        }
+    }
+    closedir(sourceDir);
+    // free(temp);
+    return false;
+}
+
+void copy(){
     struct stat fileStat;
     if (tokens.size() < 3){
-        printf("Atleast 2 arguments are required for move");
-        getchar();
-        return;
+        throw CmdModeException("Atleast 2 arguments are required for move");
     }
     char * destination = getAbsPath(tokens.back());
     lstat(destination, &fileStat);
     if ((fileStat.st_mode & S_IFMT) != S_IFDIR){
-        printf("Destination should be a directory!");
-        getchar();
-        return;
+        free(destination);
+        throw CmdModeException("Destination should be a directory!");
     }
     tokens.pop_back();
+    char * source;
     char temp[PATH_MAX] = "";
     strcat(destination, "/");
     for (int i = 1; i < tokens.size(); i++){
         memset(temp, 0, strlen(temp));
         strcpy(temp, destination);
         strcat(temp, basename(tokens[i]));
-        // printf("%s ", temp);
-        rename(getAbsPath(tokens[i]), temp);
+        source = getAbsPath(tokens[i]);
+        printf("%s", source);
+        getchar();
+        copyUtil(source, temp);
+
+        free(source);
+    }
+    free(destination);
+}
+
+void createFolder(){
+    struct stat fileStat;
+    char temp[PATH_MAX] = "";
+    if (tokens.size() < 3){
+        throw CmdModeException("Atleast 2 arguments must be present");
+    }
+    char * destination = getAbsPath(tokens.back());
+    lstat(destination, &fileStat);
+    if ((fileStat.st_mode & S_IFMT) != S_IFDIR){
+        free(destination);
+        throw CmdModeException("Destination should be a directory!");
+    }
+    strcpy(temp, destination);
+    if(temp[strlen(temp) - 1] != '/'){
+        strcat(temp, "/");
+    }
+    int tempLen = strlen(temp);
+    for (int i = 1; i < tokens.size(); i++){
+        memset(temp + tempLen, 0, strlen(temp) - tempLen);
+        strcat(temp, tokens[i]);
+        mkdir(temp, 0774);
+    }
+}
+
+void createFile(){
+    struct stat fileStat;
+    int destFile;
+    char temp[PATH_MAX] = "";
+    if (tokens.size() < 3){
+        throw CmdModeException("Atleast 2 arguments must be present");
+    }
+    char * destination = getAbsPath(tokens.back());
+    lstat(destination, &fileStat);
+    if ((fileStat.st_mode & S_IFMT) != S_IFDIR){
+        free(destination);
+        throw CmdModeException("Destination should be a directory!");
+    }
+    strcpy(temp, destination);
+    if(temp[strlen(temp) - 1] != '/'){
+        strcat(temp, "/");
+    }
+    int tempLen = strlen(temp);
+    for (int i = 1; i < tokens.size(); i++){
+        memset(temp + tempLen, 0, strlen(temp) - tempLen);
+        strcat(temp, tokens[i]);
+        destFile = open(temp, O_WRONLY | O_CREAT, 0776);
+    }
+}
+
+void deleteFile(){
+    struct stat fileStat;
+    int status;
+    char temp[PATH_MAX] = "";
+    if (tokens.size() < 2){
+        throw CmdModeException("Atleast 1 argument must be present");
+    }
+    char * destination;
+    for (int i = 1; i < tokens.size(); i++){
+        destination = getAbsPath(tokens[i]);
+        int status = lstat(destination, &fileStat);
+        if (status == -1 || (fileStat.st_mode & S_IFMT) == S_IFDIR)
+            continue;
+        remove(destination);
+    }
+}
+
+void deleteDirectory(){
+    struct stat fileStat;
+    int status;
+    char temp[PATH_MAX] = "";
+    if (tokens.size() < 2){
+        throw CmdModeException("Atleast  argument must be present");
+    }
+    char * destination;
+    for (int i = 1; i < tokens.size(); i++){
+        destination = getAbsPath(tokens[i]);
+        int status = lstat(destination, &fileStat);
+        if (status == -1 || (fileStat.st_mode & S_IFMT) != S_IFDIR)
+            continue;
+        rmdir(destination);
+    }
+}
+
+void search(){
+    if (tokens.size() != 2){
+        throw CmdModeException("Number of args must be 1");
+    }
+    Stack searchStack;
+    searchStack.push(currBuff);
+    if (searchUtil(tokens[1], searchStack)){
+        printf("True");
+    }else {
+        printf("False");
     }
     getchar();
+
+}
+
+
+void move(){
+    struct stat fileStat;
+    if (tokens.size() < 3){
+        throw CmdModeException("Atleast 2 arguments are required for move");
+    }
+    char * destination = getAbsPath(tokens.back());
+    lstat(destination, &fileStat);
+    if ((fileStat.st_mode & S_IFMT) != S_IFDIR){
+        free(destination);
+        throw CmdModeException("Destination should be a directory!");
+    }
+    tokens.pop_back();
+    char temp[PATH_MAX] = "";
+    char * source;
+    strcat(destination, "/");
+    for (int i = 1; i < tokens.size(); i++){
+        memset(temp, 0, strlen(temp));
+        strcpy(temp, destination);
+        strcat(temp, basename(tokens[i]));
+        source = getAbsPath(tokens[i]);
+        rename(source, temp);
+        free(source);
+    }
+    free(destination);
+}
+
+void gotoFolder(){
+    struct stat fileStat;
+    if (tokens.size() != 2){
+        throw CmdModeException("Incorrect number of args");
+    }
+    char * destination = getAbsPath(tokens.back());
+    lstat(destination, &fileStat);
+    if ((fileStat.st_mode & S_IFMT) != S_IFDIR){
+        free(destination);
+        throw CmdModeException("Destination should be a directory!");
+    }
+
+    listContents(destination);
+    history.push(destination);
 }
 
 void evalCommand(){
@@ -109,6 +341,27 @@ void evalCommand(){
     else if (strcmp(command, MOVE_COMMAND) == 0){
         move();
     }
+    else if (strcmp(command, COPY_COMMAND) == 0){
+        copy();
+    }
+    else if(strcmp(command, CREATE_FOLDER_COMMAND) == 0){
+        createFolder();
+    }
+    else if(strcmp(command, CREATE_FILE_COMMAND) == 0){
+        createFile();
+    }
+    else if(strcmp(command, DELETE_FILE_COMMAND) == 0){
+        deleteFile();
+    }
+    else if(strcmp(command, DELETE_FOLDER_COMMAND) == 0){
+        deleteDirectory();
+    }
+    else if(strcmp(command, GOTO_COMMAND) == 0){
+        gotoFolder();
+    }
+    else if(strcmp(command, SEARCH_COMMAND) == 0){
+        search();
+    }
 
 }
 
@@ -117,7 +370,7 @@ std::vector<char *> tokenize(char * tokenStr){
     char temp[MAX_CMD_LENGTH] = "";
     for (int i = 0; i < strlen(tokenStr); i++){
         if (tokenStr[i] == ' '){
-            if (i == 0 && tokenStr[i - 1] == ' ')
+            if (i == 0 || tokenStr[i - 1] == ' ')
                 continue;
             else{
                 res.push_back(strdup(temp));
@@ -153,14 +406,23 @@ void commandMode(){
             }
         }
         else if (strcmp(c, ENTER_KEY) == 0){
+            if (strlen(command) == 0)
+                continue;
             printf("\033[1K");
             printf("\033[%d;0H", ws.ws_row );
             tokens = tokenize(command);
-            evalCommand();
+            try {
+                evalCommand();
+            } catch(const CmdModeException &e){
+                printf("%s", e.what());
+                getchar();
+                printf("\033[1K");
+                printf("\033[%d;0H", ws.ws_row );
+            }
             memset(command, 0, strlen(command));
             tokens.clear();
             i = 0;
-            printf("\033[1K");
+            enterDir(currDir, false);
             printf("\033[%d;0H", ws.ws_row );
         }
         else if (!iscntrl(c[0])){
@@ -173,7 +435,7 @@ void commandMode(){
         c[2] = 0;
         fflush(0);
     }
-    updateScreen();
+    enterDir(currDir, false);
     return;
 
 }
@@ -227,7 +489,7 @@ void gotoParent(){
     enterDir(parentDir);
 }
 
-void enterDir(char * dir){
+void enterDir(char * dir, bool pushToStack){
     struct stat fileStat;
     char temp[PATH_MAX] = "";
     strcat(temp, currBuff);
@@ -240,6 +502,7 @@ void enterDir(char * dir){
         listContents(temp);
         printf("\033[H");
     }
-    history.push(temp);
+    if (pushToStack)
+        history.push(temp);
 }
 

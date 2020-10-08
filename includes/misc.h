@@ -4,5 +4,6 @@
 #define _MISC
 
 void enableNCMode();
+void setHomeDir();
 
 #endif
