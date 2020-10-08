@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <fcntl.h>
 #include <pwd.h>
+#include <sys/wait.h> 
 
 #define MAX_CMD_LENGTH 32768
 
@@ -80,6 +81,7 @@ extern char DELETE_FILE_COMMAND[12];
 extern char DELETE_FOLDER_COMMAND[11];
 extern char GOTO_COMMAND[5];
 extern char SEARCH_COMMAND[7];
+extern char viPath[20];
 extern int y;
 extern int x;
 extern int start;

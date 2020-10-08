@@ -48,149 +48,6 @@ void scrollUp(){
     }
 }
 
-char * getAbsPath(char * dir){
-    char * temp = (char *)malloc(sizeof(char) * PATH_MAX);
-    temp[0] = '\0';
-    if (dir[0] != '~' && dir[0] != '/'){
-        strcat(temp, currBuff);
-        if (temp[strlen(temp) - 1] != '/'){
-            strcat(temp, "/");
-        }
-    } else if(dir[0] == '~'){
-        strcat(temp, homeDir);
-        if (temp[strlen(temp) - 1] != '/'){
-            strcat(temp, "/");
-        }
-        dir = dir + 1;
-    }
-    strcat(temp, dir);
-    return temp;
-}
-
-void rename(){
-    if (tokens.size() != 3){
-        throw CmdModeException("Rename command requires 2 args");
-    }
-    char * src = getAbsPath(tokens[1]);
-    char * dest = getAbsPath(tokens[2]);
-    // printf("%s %s", src, dest);
-    int value = rename(src, dest);
-    if (value){
-        throw CmdModeException("Error changing file name");
-        free(src);
-        free(dest);
-    }
-    free(src);
-    free(dest);
-}
-
-void copyUtil(char * src, char * dest){
-    int sourceFile, destFile, status, returnStatus;
-    DIR * sourceDir;
-    char * sourceFilePath, destFilePath;
-    char fileBuffer;
-    struct stat fileStat;
-    char temp[PATH_MAX] = "";
-    int destPathLen, srcPathLen;
-    char destBuff[PATH_MAX] = "";
-    returnStatus = lstat(src, &fileStat);
-    if (returnStatus == -1)
-        throw CmdModeException("Source File is invalid");
-    if ((fileStat.st_mode & S_IFMT) == S_IFDIR){
-        struct dirent * dirp;
-        strcpy(destBuff, dest);
-        strcpy(temp, src);
-        if (destBuff[strlen(destBuff) - 1] != '/')
-            strcat(destBuff, "/");
-        if (temp[strlen(temp) - 1] != '/')
-            strcat(temp, "/");  
-        destPathLen = strlen(destBuff);
-        srcPathLen = strlen(temp);
-        status = mkdir(destBuff, fileStat.st_mode);
-        sourceDir = opendir(src);
-        while ((dirp = readdir(sourceDir)) != NULL){
-            if (strcmp(currDir, dirp->d_name) == 0 || strcmp(parentDir, dirp->d_name) == 0)
-                continue;
-            memset(temp + srcPathLen, 0, strlen(temp) - srcPathLen);
-            memset(destBuff + destPathLen, 0, strlen(destBuff) - destPathLen);
-            strcat(temp, dirp->d_name);
-            strcat(destBuff, dirp->d_name);
-            copyUtil(temp, destBuff);
-        }
-        closedir(sourceDir);
-    } else {
-        sourceFile = open(src, O_RDONLY);
-        destFile = open(dest, O_WRONLY | O_CREAT, fileStat.st_mode);
-        while((status=read(sourceFile, &fileBuffer, 1)) != 0){
-            write(destFile, &fileBuffer, 1);
-        }
-        close(sourceFile);
-        close(destFile);
-    }
-}
-
-bool searchUtil(char * searchStr, Stack &searchStack){
-    DIR * sourceDir;
-    struct stat fileStat;
-    struct dirent * dirp;
-    const char * dir = searchStack.getTop();
-    sourceDir = opendir(dir);
-    char * temp = (char *)malloc(sizeof(char) * PATH_MAX);
-    temp[0] = 0;
-    strcpy(temp, dir);
-    if (temp[strlen(temp) - 1] != '/')
-        strcat(temp, "/");
-    // printf("%s", temp);
-    // getchar();
-    int pathLen = strlen(temp);
-    while ((dirp = readdir(sourceDir)) != NULL){
-        if (strcmp(currDir, dirp->d_name) == 0 || strcmp(parentDir, dirp->d_name) == 0)
-            continue;
-        memset(temp + pathLen, 0, strlen(temp) - pathLen);
-        strcat(temp, dirp->d_name);
-        if (strcmp(dirp->d_name, searchStr) == 0)
-            return true;
-        lstat(temp, &fileStat);
-        if ((fileStat.st_mode & S_IFMT) == S_IFDIR && access(temp, R_OK) == 0){
-            searchStack.push(temp);
-            if (searchUtil(searchStr, searchStack) == true)
-                return true;
-            searchStack.pop();
-        }
-    }
-    closedir(sourceDir);
-    // free(temp);
-    return false;
-}
-
-void copy(){
-    struct stat fileStat;
-    if (tokens.size() < 3){
-        throw CmdModeException("Atleast 2 arguments are required for move");
-    }
-    char * destination = getAbsPath(tokens.back());
-    lstat(destination, &fileStat);
-    if ((fileStat.st_mode & S_IFMT) != S_IFDIR){
-        free(destination);
-        throw CmdModeException("Destination should be a directory!");
-    }
-    tokens.pop_back();
-    char * source;
-    char temp[PATH_MAX] = "";
-    strcat(destination, "/");
-    for (int i = 1; i < tokens.size(); i++){
-        memset(temp, 0, strlen(temp));
-        strcpy(temp, destination);
-        strcat(temp, basename(tokens[i]));
-        source = getAbsPath(tokens[i]);
-        printf("%s", source);
-        getchar();
-        copyUtil(source, temp);
-
-        free(source);
-    }
-    free(destination);
-}
 
 void createFolder(){
     struct stat fileStat;
@@ -224,6 +81,7 @@ void createFile(){
         throw CmdModeException("Atleast 2 arguments must be present");
     }
     char * destination = getAbsPath(tokens.back());
+    tokens.pop_back();
     lstat(destination, &fileStat);
     if ((fileStat.st_mode & S_IFMT) != S_IFDIR){
         free(destination);
@@ -271,7 +129,7 @@ void deleteDirectory(){
         int status = lstat(destination, &fileStat);
         if (status == -1 || (fileStat.st_mode & S_IFMT) != S_IFDIR)
             continue;
-        rmdir(destination);
+        deleteUtil(destination);
     }
 }
 
@@ -290,6 +148,32 @@ void search(){
 
 }
 
+void copy(){
+    struct stat fileStat;
+    if (tokens.size() < 3){
+        throw CmdModeException("Atleast 2 arguments are required for move");
+    }
+    char * destination = getAbsPath(tokens.back());
+    lstat(destination, &fileStat);
+    if ((fileStat.st_mode & S_IFMT) != S_IFDIR){
+        free(destination);
+        throw CmdModeException("Destination should be a directory!");
+    }
+    tokens.pop_back();
+    char * source;
+    char temp[PATH_MAX] = "";
+    strcat(destination, "/");
+    for (int i = 1; i < tokens.size(); i++){
+        memset(temp, 0, strlen(temp));
+        strcpy(temp, destination);
+        strcat(temp, basename(tokens[i]));
+        source = getAbsPath(tokens[i]);
+        copyUtil(source, temp);
+
+        free(source);
+    }
+    free(destination);
+}
 
 void move(){
     struct stat fileStat;
@@ -311,7 +195,8 @@ void move(){
         strcpy(temp, destination);
         strcat(temp, basename(tokens[i]));
         source = getAbsPath(tokens[i]);
-        rename(source, temp);
+        copyUtil(source, temp);
+        deleteUtil(source);
         free(source);
     }
     free(destination);
@@ -501,6 +386,19 @@ void enterDir(char * dir, bool pushToStack){
     if ((fileStat.st_mode & S_IFMT) == S_IFDIR){
         listContents(temp);
         printf("\033[H");
+    } else {
+        pid_t childProc = fork();
+        if (childProc == 0){
+            char * cArgs[] = {viPath, temp, NULL};
+            execv(cArgs[0], cArgs);
+            exit(0);
+        } else {
+            int child_status;
+            pid_t tpid;
+            do {
+                tpid = wait(&child_status);
+            }while(tpid != childProc);
+        }
     }
     if (pushToStack)
         history.push(temp);

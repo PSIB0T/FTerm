@@ -100,6 +100,7 @@ char DELETE_FILE_COMMAND[12] = "delete_file";
 char GOTO_COMMAND[5] = "goto";
 char SEARCH_COMMAND[7] = "search";
 char userDir[PATH_MAX] = "";
+char viPath[20] = "/usr/bin/vi";
 int y = 0;
 int x = 0;
 int start = 0;
