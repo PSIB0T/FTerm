@@ -1,5 +1,12 @@
 #include "./../includes/listDir.h"
 
+void clearDirList(){
+    for (char * a: dirList){
+        free(a);
+    }
+    dirList.clear();
+}
+
 void listContents(const char * cwd){
     DIR *dp;
     struct dirent * dirp;
@@ -8,12 +15,12 @@ void listContents(const char * cwd){
         exit(1);
     }
     char * res = realpath(cwd, currBuff);
-    dirList.clear();
-    dirList.push_back(currDir);
-    dirList.push_back(parentDir);
+    clearDirList();
+    dirList.push_back(strdup(currDir));
+    dirList.push_back(strdup(parentDir));
     while ((dirp = readdir(dp)) != NULL){
         if (strcmp(currDir, dirp->d_name) != 0 && strcmp(parentDir, dirp->d_name) != 0){
-            dirList.push_back(dirp->d_name);
+            dirList.push_back(strdup(dirp->d_name));
         }
     }
     ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
@@ -31,14 +38,18 @@ void listContents(const char * cwd){
 void updateScreen(){
     printf("\033[H\033[J");
     for (int i = start; i < end; i++){
+        // printf("Path is %s\t", dirList[i]);
         listFile(dirList[i]);
+        // printf("%lu", strlen(dirList[i]));
+        // getchar();
     }
     printf("\033[%d;0H", (y + 1));
 }
 
 void listFile(const char * fName){
-    struct winsize ws;
-    ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
+    char timeBuff[25] = "";
+    struct passwd *userInfo;
+    struct group *groupInfo;
     char temp[PATH_MAX] = "";
     struct stat fileStat;
     strcat(temp, currBuff);
@@ -71,6 +82,14 @@ void listFile(const char * fName){
         break;
 
     }
+
+    // Convert time to string format
+    strftime(timeBuff, 25, "%Y/%m/%d %H:%M:%S", localtime(&fileStat.st_mtim.tv_sec));
+
+    // Extract username and group name from their respective ids
+    userInfo = getpwuid(fileStat.st_uid);
+    groupInfo = getgrgid(fileStat.st_gid);
+
     printf( (fileStat.st_mode & S_IRUSR) ? "r" : "-");
     printf( (fileStat.st_mode & S_IWUSR) ? "w" : "-");
     printf( (fileStat.st_mode & S_IXUSR) ? "x" : "-");
@@ -81,6 +100,10 @@ void listFile(const char * fName){
     printf( (fileStat.st_mode & S_IWOTH) ? "w" : "-");
     printf( (fileStat.st_mode & S_IXOTH) ? "x" : "-");
 
+    printf("\t%ld", fileStat.st_size);
+    printf("\t%s", userInfo->pw_name);
+    printf("\t%s", groupInfo->gr_name);
+    printf("\t%s", timeBuff);
     printf("\t%s", fName);
 
     printf("\n");

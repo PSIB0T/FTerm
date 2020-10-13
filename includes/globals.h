@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <fcntl.h>
 #include <pwd.h>
+#include <grp.h>
 #include <sys/wait.h> 
 
 #define MAX_CMD_LENGTH 32768

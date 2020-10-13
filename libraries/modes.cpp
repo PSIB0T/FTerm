@@ -164,6 +164,7 @@ void copy(){
     char temp[PATH_MAX] = "";
     strcat(destination, "/");
     for (int i = 1; i < tokens.size(); i++){
+        // printf("In loop");
         memset(temp, 0, strlen(temp));
         strcpy(temp, destination);
         strcat(temp, basename(tokens[i]));
@@ -254,7 +255,22 @@ std::vector<char *> tokenize(char * tokenStr){
     std::vector<char *>res;
     char temp[MAX_CMD_LENGTH] = "";
     for (int i = 0; i < strlen(tokenStr); i++){
-        if (tokenStr[i] == ' '){
+        if (tokenStr[i] == '\"'){
+            i++;
+            while(tokenStr[i] != '\"' && i < strlen(tokenStr)){
+                // if (tokenStr[i] == ' ')
+                //     strncat(temp, "\\ ", 2);
+                // else
+                strncat(temp, &tokenStr[i], 1);
+                i++;
+            }
+            i++;
+            if (strlen(temp) > 0){
+                res.push_back(strdup(temp));
+                memset(temp, 0, strlen(temp));
+            }
+        }
+        else if (tokenStr[i] == ' '){
             if (i == 0 || tokenStr[i - 1] == ' ')
                 continue;
             else{
