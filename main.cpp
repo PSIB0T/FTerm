@@ -1,12 +1,12 @@
 #include "includes/fTerm.h"
 
 int main(int argc, char * argv[]){
-    if (argc != 2){
-        printf("%s \n", "Insufficient number of args");
-        return -1;
+    char * path = currDir;
+    if (argc == 2){
+        path = argv[1];
     }
     enableNCMode();
-    listContents(argv[1]);
+    listContents(path);
     normalMode();
     return 0;
 }
